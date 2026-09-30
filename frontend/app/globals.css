@@ -1,0 +1,67 @@
+@import url('https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,400;9..144,500;9..144,600;9..144,700&family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500;600&display=swap');
+@import "tailwindcss";
+
+@theme {
+  --font-display: "Fraunces", serif;
+  --font-sans: "Inter", ui-sans-serif, system-ui, sans-serif;
+  --font-mono: "JetBrains Mono", ui-monospace, monospace;
+
+  /* Primary Brand Theme Colors (#0C8241 Forest Green) */
+  --color-navy-950: #053b1d;
+  --color-navy-900: #0C8241;
+  --color-navy-800: #096633;
+  --color-navy-700: #109b4e;
+  --color-navy-600: #16b85e;
+
+  /* Accent Gold / Yellow Colors */
+  --color-gold-600: #b47d0d;
+  --color-gold-500: #f59e0b;
+  --color-gold-400: #fbbf24;
+  --color-gold-300: #fcd34d;
+  --color-gold-100: #fef3c7;
+
+  --color-cream-50: #f4f8f5;
+  --color-cream-100: #e8f3ec;
+
+  --color-ink-900: #121e17;
+  --color-ink-600: #42584c;
+  --color-ink-400: #7b9687;
+
+  --color-success-600: #0C8241;
+  --color-success-100: #e4f5eb;
+  --color-danger-600: #b3261e;
+  --color-danger-100: #fbe6e5;
+  --color-warn-600: #b3791e;
+  --color-warn-100: #fbf0e0;
+}
+
+body {
+  font-family: var(--font-sans);
+  background-color: var(--color-cream-50);
+  color: var(--color-ink-900);
+}
+
+.font-display {
+  font-family: var(--font-display);
+}
+
+.font-mono-tab {
+  font-family: var(--font-mono);
+}
+
+::-webkit-scrollbar {
+  width: 8px;
+  height: 8px;
+}
+::-webkit-scrollbar-thumb {
+  background: var(--color-navy-700);
+  border-radius: 999px;
+}
+::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+.seal {
+  background: radial-gradient(circle at 35% 30%, var(--color-gold-400), var(--color-gold-600) 70%);
+  box-shadow: inset 0 0 0 2px rgba(255,255,255,0.25), 0 2px 6px rgba(0,0,0,0.35);
+}
