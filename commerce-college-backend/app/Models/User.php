@@ -13,7 +13,7 @@ class User extends Authenticatable
 
     protected $fillable = [
         'name', 'email', 'password', 'role', 'phone', 'address',
-        'avatar', 'gender', 'date_of_birth', 'status',
+        'avatar', 'gender', 'religion', 'date_of_birth', 'status',
     ];
 
     protected $hidden = [
@@ -26,7 +26,17 @@ class User extends Authenticatable
         'password' => 'hashed',
     ];
 
-    protected $appends = ['avatar_url'];
+    protected $appends = ['avatar_url', 'studentProfile', 'teacherProfile'];
+
+    public function getStudentProfileAttribute()
+    {
+        return $this->relationLoaded('studentProfile') ? $this->getRelation('studentProfile') : null;
+    }
+
+    public function getTeacherProfileAttribute()
+    {
+        return $this->relationLoaded('teacherProfile') ? $this->getRelation('teacherProfile') : null;
+    }
 
     public function getAvatarUrlAttribute()
     {

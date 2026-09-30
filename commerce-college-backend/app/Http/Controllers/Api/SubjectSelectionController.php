@@ -32,15 +32,15 @@ class SubjectSelectionController extends Controller
 
 
      
+        // আবশ্যিক (compulsory) বিষয়গুলো গুচ্ছে যোগ করা যাবে না, বাকি সব নির্বাচনিক/ঐচ্ছিক বিষয় যোগ করা যাবে
         $mismatched = Subject::whereIn('id', $data['subject_ids'])
-            ->where('subject_category', '!=', $data['code'])
+            ->where('subject_category', 'compulsory')
             ->pluck('name', 'id');
 
         if ($mismatched->isNotEmpty()) {
-            $groupLabel = $data['code'] === 'group_a' ? 'ক-গুচ্ছ' : 'খ-গুচ্ছ';
             return response()->json([
-                'message' => "নিম্নলিখিত বিষয়গুলোর ক্যাটেগরি \"{$groupLabel}\" হিসেবে সেট করা নেই, তাই এই গুচ্ছে যোগ করা যাবে না: "
-                    . $mismatched->implode(', ') . '। আগে "বিষয় ও মার্কস কনফিগারেশন" ট্যাব থেকে ঐ বিষয়গুলো সম্পাদনা করে সঠিক ক্যাটেগরি সেট করুন।',
+                'message' => "নিম্নলিখিত বিষয়গুলো আবশ্যিক (Compulsory) হিসেবে সেট করা আছে, তাই এদের নির্বাচনিক বা ঐচ্ছিক গুচ্ছে যোগ করা যাবে না: "
+                    . $mismatched->implode(', '),
             ], 422);
         }
 

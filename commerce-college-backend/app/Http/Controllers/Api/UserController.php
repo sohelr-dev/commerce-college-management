@@ -24,6 +24,7 @@ class UserController extends Controller
             'studentProfile.section',
             'studentProfile.semester',
             'teacherProfile.department',
+            'subjects',
         ]);
 
         if ($request->role) {
@@ -96,7 +97,8 @@ class UserController extends Controller
             'role'            => ['required', Rule::in(['admin', 'teacher', 'student'])],
             'phone'           => ['nullable', 'string'],
             'address'         => ['nullable', 'string'],
-            'gender'          => ['nullable', Rule::in(['male', 'female', 'other'])],
+            'gender'          => ['required_if:role,student', 'nullable', Rule::in(['male', 'female', 'other'])],
+            'religion'        => ['required_if:role,student', 'nullable', 'string', Rule::in(['islam', 'hinduism', 'christianity', 'buddhism', 'other'])],
             'date_of_birth'   => ['nullable', 'date'],
             'avatar_file'     => ['nullable', 'image', 'max:5120'],
 
@@ -104,7 +106,15 @@ class UserController extends Controller
             'department_id'   => ['required_if:role,student', 'nullable', 'exists:departments,id'],
             'semester_id'     => ['required_if:role,student', 'nullable', 'exists:semesters,id'],
             'section_id'      => ['required_if:role,student', 'nullable', 'exists:sections,id'],
-            'roll_no'         => ['required_if:role,student', 'nullable', 'string'],
+            'roll_no'         => [
+                'required_if:role,student',
+                'nullable',
+                'string',
+                Rule::unique('student_profiles', 'roll_no')->where(function ($q) use ($request) {
+                    return $q->where('section_id', $request->section_id)
+                             ->where('session', $request->session);
+                }),
+            ],
             'registration_no' => ['required_if:role,student', 'nullable', 'string', 'unique:student_profiles,registration_no'],
             'session'         => ['required_if:role,student', 'nullable', 'string'],
             'year'            => ['nullable', Rule::in(['1st', '2nd'])],
@@ -140,6 +150,7 @@ class UserController extends Controller
                 'phone'         => $data['phone'] ?? null,
                 'address'       => $data['address'] ?? null,
                 'gender'        => $data['gender'] ?? null,
+                'religion'      => $data['religion'] ?? null,
                 'date_of_birth' => $data['date_of_birth'] ?? null,
                 'avatar'        => $avatarPath,
             ]);
@@ -216,6 +227,46 @@ class UserController extends Controller
         $groupAIds = collect($request->input('group_a_subject_ids', []));
         $groupBId  = $request->input('group_b_subject_id');
 
+        // ═══ ক্রস-সিলেকশন চেক: ক-গুচ্ছের নির্বাচিত বিষয় খ-গুচ্ছে নেওয়া যাবে না ═══
+        if ($groupBId && $groupAIds->contains($groupBId)) {
+            throw ValidationException::withMessages([
+                'group_b_subject_id' => ['ক-গুচ্ছে নির্বাচিত বিষয় পুনরায় খ-গুচ্ছে (৪র্থ বিষয় হিসেবে) নির্বাচন করা যাবে না। অন্য বিষয় নির্বাচন করুন।'],
+            ]);
+        }
+
+        // ═══ জেন্ডার চেক: গার্হস্থ্য বিজ্ঞান শুধুমাত্র ছাত্রীদের (female) জন্য ═══
+        $allChosenIds = $groupAIds->merge($groupBId ? [$groupBId] : []);
+        $homeEcoExists = Subject::whereIn('id', $allChosenIds)
+            ->where(function ($q) {
+                $q->where('name', 'like', '%গার্হস্থ্য%')
+                  ->orWhere('name', 'like', '%Home Economics%')
+                  ->orWhere('code', 'like', '%273%');
+            })->exists();
+
+        $studentGender = $data['gender'] ?? $user->gender ?? null;
+        if ($homeEcoExists && $studentGender !== 'female') {
+            throw ValidationException::withMessages([
+                'group_b_subject_id' => ['"গার্হস্থ্য বিজ্ঞান" বিষয়টি শুধুমাত্র ছাত্রীদের জন্য প্রযোজ্য। কোনো ছাত্র এটি নির্বাচন করতে পারবে না।'],
+            ]);
+        }
+
+        // ═══ ধর্ম চেক: ইসলামের ইতিহাস ও সংস্কৃতি শুধুমাত্র মুসলিম ছাত্র-ছাত্রীদের জন্য ═══
+        $islamicHistorySubject = Subject::whereIn('id', $allChosenIds)
+            ->where(function ($q) {
+                $q->where('name', 'like', '%ইসলামের ইতিহাস%')
+                  ->orWhere('name', 'like', '%Islamic History%')
+                  ->orWhere('code', 'like', '%267%')
+                  ->orWhere('code', 'like', '%268%');
+            })->first();
+
+        $studentReligion = $data['religion'] ?? $user->religion ?? null;
+        if ($islamicHistorySubject && $studentReligion !== 'islam') {
+            $field = $groupAIds->contains($islamicHistorySubject->id) ? 'group_a_subject_ids' : 'group_b_subject_id';
+            throw ValidationException::withMessages([
+                $field => ['"ইসলামের ইতিহাস ও সংস্কৃতি" বিষয়টি শুধুমাত্র মুসলিম ছাত্র-ছাত্রীদের জন্য প্রযোজ্য। হিন্দু বা অন্য ধর্মের শিক্ষার্থীদের জন্য এটি প্রযোজ্য নয়।'],
+            ]);
+        }
+
         // Group A validation: required_count মিলতে হবে এবং subject অবশ্যই group_a-এর পুলে থাকতে হবে
         if ($groupA) {
             $poolIds = $groupA->subjects->pluck('id');
@@ -263,6 +314,8 @@ class UserController extends Controller
             'email'   => ['required', 'email', Rule::unique('users', 'email')->ignore($user->id)],
             'phone'   => ['nullable', 'string'],
             'address' => ['nullable', 'string'],
+            'gender'  => ['nullable', Rule::in(['male', 'female', 'other'])],
+            'religion'=> ['nullable', 'string', Rule::in(['islam', 'hinduism', 'christianity', 'buddhism', 'other'])],
             'status'  => ['required', Rule::in(['active', 'inactive'])],
             'avatar_file' => ['nullable', 'image', 'max:5120'],
 
@@ -288,12 +341,14 @@ class UserController extends Controller
         }
 
         $user->update([
-            'name'    => $data['name'],
-            'email'   => $data['email'],
-            'phone'   => $data['phone'] ?? $user->phone,
-            'address' => $data['address'] ?? $user->address,
-            'status'  => $data['status'],
-            'avatar'  => $data['avatar'] ?? $user->avatar,
+            'name'     => $data['name'],
+            'email'    => $data['email'],
+            'phone'    => $data['phone'] ?? $user->phone,
+            'address'  => $data['address'] ?? $user->address,
+            'gender'   => $data['gender'] ?? $user->gender,
+            'religion' => $data['religion'] ?? $user->religion,
+            'status'   => $data['status'],
+            'avatar'   => $data['avatar'] ?? $user->avatar,
         ]);
 
         if ($user->role === 'teacher' && $user->teacherProfile) {
